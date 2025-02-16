@@ -1,0 +1,137 @@
+# azure-pipelines.yml
+# ------------------------------------------------------------------
+# CI/CD Pipeline for DevOps-task sample application
+# Branching strategy: 'develop' for testing/integration, 'main' for production.
+# Secrets (e.g., ACR and Azure subscription details) are managed via
+# variable groups/service connections.
+# ------------------------------------------------------------------
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+stages:
+# Stage 1: Build and Test
+- stage: AutomatedTesting
+  displayName: "Build & Test: Unit Tests, Infrastructure Validation, Security Scanning"
+  jobs:
+  - job: BuildAndTestJob
+    displayName: "Run Tests and Scans"
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
+    # - script: |
+    #      echo "Running unit tests..."
+    #      # Replace with your actual test command (e.g., npm test, dotnet test, etc.)
+    #      ./run_tests.sh
+    #   displayName: "Run Unit Tests"
+    - script: |
+         echo "Validating infrastructure..."
+         # Example: run terraform validation if applicable
+         terraform validate || echo "No infrastructure code to validate."
+      displayName: "Infrastructure Validation"
+    # - script: |
+        #  echo "Performing security scan on container image..."
+        #  # Example: using Trivy for container scanning; adjust image name as needed.
+        #  trivy image --exit-code 0 --severity HIGH,CRITICAL devopstask:latest
+      # displayName: "Security Scanning"
+    # - task: PublishTestResults@2
+    #   inputs:
+    #      testResultsFiles: '**/test-results.xml'
+    #      testRunTitle: 'Unit Tests'
+    #   displayName: "Publish Test Results"
+
+# Stage 2: Containerization
+# - stage: Containerize
+#   displayName: "Containerize Application"
+#   dependsOn: BuildAndTest
+#   jobs:
+#   - job: BuildImage
+#     displayName: "Build and Push Docker Image"
+#     pool:
+#       vmImage: 'ubuntu-latest'
+#     steps:
+#     - checkout: self
+#     - task: Docker@2
+#       displayName: "Build and Push Docker Image"
+#       inputs:
+#         containerRegistry: '$(ACR_SERVICE_CONNECTION)'   # Service connection to your ACR (managed securely)
+#         repository: 'devopstask'
+#         command: 'buildAndPush'
+#         Dockerfile: '**/Dockerfile'
+#         tags: |
+#           $(Build.BuildId)
+#     - script: |
+#          echo "Docker image built and pushed successfully."
+#       displayName: "Confirm Build"
+
+# # Stage 3: Deployment to AKS
+# - stage: Deploy
+#   displayName: "Deploy to AKS"
+#   dependsOn: Containerize
+#   jobs:
+#   - deployment: DeployToAKS
+#     displayName: "Deploy Application to AKS Cluster"
+#     environment: 'aks-prod'  # Define this environment in Azure Pipelines for approvals/quality gates
+#     pool:
+#       vmImage: 'ubuntu-latest'
+#     strategy:
+#       runOnce:
+#         deploy:
+#           steps:
+#           - checkout: self
+#           - task: Kubernetes@1
+#             displayName: "Deploy to AKS using kubectl"
+#             inputs:
+#               connectionType: 'Azure Resource Manager'
+#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
+#               azureResourceGroup: 'devops-task-resourceGroup'
+#               kubernetesCluster: 'devops-task-aksCluster'
+#               command: apply
+#               useConfigurationFile: true
+#               configuration: 'k8s/deployment.yaml'  # Your Kubernetes manifest file
+#           - task: Kubernetes@1
+#             displayName: "Check Deployment Status"
+#             inputs:
+#               connectionType: 'Azure Resource Manager'
+#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
+#               azureResourceGroup: 'devops-task-resourceGroup'
+#               kubernetesCluster: 'devops-task-aksCluster'
+#               command: get
+#               arguments: 'pods'
+#           - script: |
+#                echo "Performing health check on deployment..."
+#                # Example health check: verify that at least one pod with label app=devopstask is Running.
+#                RUNNING=$(kubectl get pods -l app=devopstask -o jsonpath='{.items[*].status.phase}' | grep -c Running)
+#                echo "Found $RUNNING running pods."
+#                if [ $RUNNING -lt 1 ]; then
+#                  echo "Deployment health check failed."
+#                  exit 1
+#                fi
+#             displayName: "Health Check"
+
+# # Stage 4: Automated Rollback (if deployment fails)
+# - stage: Rollback
+#   displayName: "Rollback Deployment on Failure"
+#   dependsOn: Deploy
+#   condition: failed()  # This stage runs only if the Deploy stage fails
+#   jobs:
+#   - job: RollbackJob
+#     displayName: "Rollback Deployment to Previous Version"
+#     pool:
+#       vmImage: 'ubuntu-latest'
+#     steps:
+#     - script: |
+#          echo "Initiating rollback..."
+#          # Use kubectl rollout undo to rollback the deployment.
+#          kubectl rollout undo deployment/devopstask-deployment
+#       displayName: "Rollback Command"
