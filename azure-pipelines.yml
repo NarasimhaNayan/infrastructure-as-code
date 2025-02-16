@@ -26,7 +26,7 @@ stages:
   - job: BuildAndTestJob
     displayName: "Run Tests and Scans"
     pool:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'self-hosted-agent'
     steps:
     - checkout: self
     # - script: |
