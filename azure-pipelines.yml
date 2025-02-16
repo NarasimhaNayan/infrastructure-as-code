@@ -35,10 +35,10 @@ stages:
     #   displayName: "Run Unit Tests"
     - script: |
          echo "Validating infrastructure..."
-         # Example: run terraform validation if applicable
-         terrafom init
+         terraform init
          terraform validate || echo "No infrastructure code to validate."
       displayName: "Infrastructure Validation"
+
     # - script: |
         #  echo "Performing security scan on container image..."
         #  # Example: using Trivy for container scanning; adjust image name as needed.
