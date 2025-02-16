@@ -36,6 +36,7 @@ stages:
     - script: |
          echo "Validating infrastructure..."
          # Example: run terraform validation if applicable
+         terrafom init
          terraform validate || echo "No infrastructure code to validate."
       displayName: "Infrastructure Validation"
     # - script: |
