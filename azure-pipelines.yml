@@ -51,10 +51,10 @@ stages:
     #   displayName: "Publish Test Results"
 
 # Stage 2: Containerization
-- stage: Containerize
-  displayName: "Containerize Application"
-  dependsOn: AutomatedTesting
-  jobs:
+# - stage: Containerize
+#   displayName: "Containerize Application"
+#   dependsOn: AutomatedTesting
+#   jobs:
   - job: BuildImage
     displayName: "Build and Push Docker Image"
     pool:
