@@ -51,28 +51,28 @@ stages:
     #   displayName: "Publish Test Results"
 
 # Stage 2: Containerization
-# - stage: Containerize
-#   displayName: "Containerize Application"
-#   dependsOn: BuildAndTest
-#   jobs:
-#   - job: BuildImage
-#     displayName: "Build and Push Docker Image"
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     steps:
-#     - checkout: self
-#     - task: Docker@2
-#       displayName: "Build and Push Docker Image"
-#       inputs:
-#         containerRegistry: '$(ACR_SERVICE_CONNECTION)'   # Service connection to your ACR (managed securely)
-#         repository: 'devopstask'
-#         command: 'buildAndPush'
-#         Dockerfile: '**/Dockerfile'
-#         tags: |
-#           $(Build.BuildId)
-#     - script: |
-#          echo "Docker image built and pushed successfully."
-#       displayName: "Confirm Build"
+- stage: Containerize
+  displayName: "Containerize Application"
+  dependsOn: AutomatedTesting
+  jobs:
+  - job: BuildImage
+    displayName: "Build and Push Docker Image"
+    pool:
+      vmImage: 'self-hosted-agent'
+    steps:
+    - checkout: self
+    - task: Docker@2
+      displayName: "Build and Push Docker Image"
+      inputs:
+        containerRegistry: 'devopsTaskContainerRegistry'   # Service connection to your ACR (managed securely)
+        repository: 'devopsTaskContainerRepository'
+        command: 'buildAndPush'
+        Dockerfile: '**/Dockerfile'
+        tags: |
+          $(Build.BuildId)
+    - script: |
+         echo "Docker image built and pushed successfully."
+      displayName: "Confirm Build"
 
 # # Stage 3: Deployment to AKS
 # - stage: Deploy
