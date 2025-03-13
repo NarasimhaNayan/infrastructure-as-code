@@ -135,7 +135,7 @@ stages:
               imagePullSecrets: |
                 $(imagePullSecret)
               containers: |
-                $(containerRegistry)/$(imageRepository):$(tag)
+                $(containerRegistry)/$(imageRepository):58
 
 # Stage 4: Automated Rollback (if deployment fails)
 - stage: Rollback
