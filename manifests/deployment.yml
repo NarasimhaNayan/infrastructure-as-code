@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopstask-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devopstask
+  template:
+    metadata:
+      labels:
+        app: devopstask
+    spec:
+      # If using an imagePullSecret, uncomment the section below:
+      imagePullSecrets:
+      - name: acr-secret
+      containers:
+      - name: devopstask-container
+        image: decopsTaskContainerRegistry.azurecr.io/devopsTaskContainerRepository:latest
+        ports:
+        - containerPort: 8080
