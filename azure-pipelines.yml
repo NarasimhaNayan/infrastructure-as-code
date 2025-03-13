@@ -131,8 +131,8 @@ stages:
               manifests: |
                 manifests\deployment.yml
                 manifests\service.yml
-              imagePullSecrets: |
-                $(imagePullSecret)
+              # imagePullSecrets: |
+              #   $(imagePullSecret)
               containers: |
                 $(containerRegistry)/$(imageRepository):$(tag)
 
