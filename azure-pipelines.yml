@@ -141,18 +141,17 @@ stages:
 - stage: Rollback
   displayName: "Rollback Deployment on Failure"
   dependsOn: Deploy
-  condition: failed()  # This stage runs only if the Deploy stage fails
+  condition: failed() 
   jobs:
   - job: RollbackJob
     displayName: "Rollback Deployment to Previous Version"
     pool: $(vmImageName)
     steps:
     - script: |
-        echo "Fetching AKS credentials..."
-        az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
-      displayName: "Get AKS Credentials"
-    - script: |
+         echo "Fetching AKS credentials..."
+         az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
+         echo "Checking rollout history..."
+         kubectl rollout history deployment/devopstask-deployment --namespace default
          echo "Initiating rollback..."
-         # Use kubectl rollout undo to rollback the deployment.
-         kubectl rollout undo deployment/devopstask-deployment
+         kubectl rollout undo deployment/devopstask-deployment --namespace default || echo "No previous revision found; rollback not possible."
       displayName: "Rollback Command"
