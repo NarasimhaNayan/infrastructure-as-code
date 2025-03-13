@@ -18,6 +18,22 @@ pr:
       - main
       - develop
 
+variables:
+
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'edac4454-1e02-4b6c-9c3d-5c7100c11af3'
+  imageRepository: 'devopsTaskContainerRepository'
+  containerRegistry: 'devopsTaskContainerRegistry.azurecr.io'
+  dockerfilePath: 'Devops-task/Dockerfile'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'devopstaskcontainerregistry5460273c-auth'
+
+  # Agent VM image name
+  vmImageName: 'self-hosted-agent'
+
+  # Name of the new namespace being created to deploy the PR changes.
+  k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+
 stages:
 # Stage 1: Build and Test
 - stage: AutomatedTesting
@@ -81,48 +97,44 @@ stages:
 
 # # Stage 3: Deployment to AKS
 # - stage: Deploy
-#   displayName: "Deploy to AKS"
-#   dependsOn: Containerize
-#   jobs:
-#   - deployment: DeployToAKS
-#     displayName: "Deploy Application to AKS Cluster"
-#     environment: 'aks-prod'  # Define this environment in Azure Pipelines for approvals/quality gates
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     strategy:
-#       runOnce:
-#         deploy:
-#           steps:
-#           - checkout: self
-#           - task: Kubernetes@1
-#             displayName: "Deploy to AKS using kubectl"
-#             inputs:
-#               connectionType: 'Azure Resource Manager'
-#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
-#               azureResourceGroup: 'devops-task-resourceGroup'
-#               kubernetesCluster: 'devops-task-aksCluster'
-#               command: apply
-#               useConfigurationFile: true
-#               configuration: 'k8s/deployment.yaml'  # Your Kubernetes manifest file
-#           - task: Kubernetes@1
-#             displayName: "Check Deployment Status"
-#             inputs:
-#               connectionType: 'Azure Resource Manager'
-#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
-#               azureResourceGroup: 'devops-task-resourceGroup'
-#               kubernetesCluster: 'devops-task-aksCluster'
-#               command: get
-#               arguments: 'pods'
-#           - script: |
-#                echo "Performing health check on deployment..."
-#                # Example health check: verify that at least one pod with label app=devopstask is Running.
-#                RUNNING=$(kubectl get pods -l app=devopstask -o jsonpath='{.items[*].status.phase}' | grep -c Running)
-#                echo "Found $RUNNING running pods."
-#                if [ $RUNNING -lt 1 ]; then
-#                  echo "Deployment health check failed."
-#                  exit 1
-#                fi
-#             displayName: "Health Check"
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Containerize
+
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy image to AKS
+    pool: $(vmImageName)
+    environment: 'NarasimhaNayaninfrastructureascode-2986.default'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - script: |
+              if not exist "Devops-task" (
+                echo "Cloning inner repository..."
+                git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
+              displayName: "Clone Inner Repository"
+              )
+          - task: KubernetesManifest@1
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+
+          - task: KubernetesManifest@1
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(imageRepository):latest
 
 # # Stage 4: Automated Rollback (if deployment fails)
 # - stage: Rollback
