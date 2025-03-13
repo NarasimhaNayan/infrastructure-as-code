@@ -148,6 +148,10 @@ stages:
     pool: $(vmImageName)
     steps:
     - script: |
+        echo "Fetching AKS credentials..."
+        az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
+      displayName: "Get AKS Credentials"
+    - script: |
          echo "Initiating rollback..."
          # Use kubectl rollout undo to rollback the deployment.
          kubectl rollout undo deployment/devopstask-deployment
