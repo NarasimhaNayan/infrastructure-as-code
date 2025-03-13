@@ -61,9 +61,11 @@ stages:
     steps:
     - checkout: self
     - script: |
-        echo "Cloning inner repository..."
-        git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
-      displayName: "Clone Inner Repository"
+        if not exist "Devops-task" (
+          echo "Cloning inner repository..."
+          git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
+        displayName: "Clone Inner Repository"
+        )
     - task: Docker@2
       displayName: "Build and Push Docker Image"
       inputs:
