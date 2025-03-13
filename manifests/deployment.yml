@@ -14,7 +14,7 @@ spec:
     spec:
       # If using an imagePullSecret, uncomment the section below:
       imagePullSecrets:
-      - name: acr-secret
+      - name: $(imagePullSecret)
       containers:
       - name: devopstask-container
         image: devopsTaskContainerRegistry.azurecr.io/devopstaskcontainerrepository:$(Build.BuildId)
