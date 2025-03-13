@@ -17,6 +17,6 @@ spec:
       # - name: devopstaskcontainerregistry5460273c-auth
       containers:
       - name: devopstask-container
-        image: devopsTaskContainerRegistry.azurecr.io/devopstaskcontainerrepository:$(Build.BuildId)
+        image: devopsTaskContainerRegistry.azurecr.io/devopstaskcontainerrepository:58
         ports:
-        - containerPort: 8080
+        - containerPort: 8000
