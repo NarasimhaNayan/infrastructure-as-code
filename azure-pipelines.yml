@@ -136,19 +136,18 @@ stages:
               containers: |
                 $(containerRegistry)/$(imageRepository):$(tag)
 
-# # Stage 4: Automated Rollback (if deployment fails)
-# - stage: Rollback
-#   displayName: "Rollback Deployment on Failure"
-#   dependsOn: Deploy
-#   condition: failed()  # This stage runs only if the Deploy stage fails
-#   jobs:
-#   - job: RollbackJob
-#     displayName: "Rollback Deployment to Previous Version"
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     steps:
-#     - script: |
-#          echo "Initiating rollback..."
-#          # Use kubectl rollout undo to rollback the deployment.
-#          kubectl rollout undo deployment/devopstask-deployment
-#       displayName: "Rollback Command"
+# Stage 4: Automated Rollback (if deployment fails)
+- stage: Rollback
+  displayName: "Rollback Deployment on Failure"
+  dependsOn: Deploy
+  condition: failed()  # This stage runs only if the Deploy stage fails
+  jobs:
+  - job: RollbackJob
+    displayName: "Rollback Deployment to Previous Version"
+    pool: $(vmImageName)
+    steps:
+    - script: |
+         echo "Initiating rollback..."
+         # Use kubectl rollout undo to rollback the deployment.
+         kubectl rollout undo deployment/devopstask-deployment
+      displayName: "Rollback Command"
