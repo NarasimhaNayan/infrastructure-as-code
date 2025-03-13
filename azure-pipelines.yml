@@ -60,13 +60,17 @@ stages:
     pool: 'self-hosted-agent'
     steps:
     - checkout: self
+    - script: |
+        echo "Cloning inner repository..."
+        git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
+      displayName: "Clone Inner Repository"
     - task: Docker@2
       displayName: "Build and Push Docker Image"
       inputs:
         containerRegistry: 'devopsTaskContainerRegistry'   # Service connection to your ACR (managed securely)
         repository: 'devopsTaskContainerRepository'
         command: 'buildAndPush'
-        Dockerfile: '**/Dockerfile'
+        Dockerfile: 'Devops-task/Dockerfile'
         tags: |
           $(Build.BuildId)
     - script: |
