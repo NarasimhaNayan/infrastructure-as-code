@@ -22,7 +22,7 @@ variables:
 
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: 'edac4454-1e02-4b6c-9c3d-5c7100c11af3'
-  imageRepository: 'devopsTaskContainerRepository'
+  imageRepository: 'devopstaskcontainerrepository'
   containerRegistry: 'devopsTaskContainerRegistry.azurecr.io'
   dockerfilePath: 'Devops-task/Dockerfile'
   tag: '$(Build.BuildId)'
