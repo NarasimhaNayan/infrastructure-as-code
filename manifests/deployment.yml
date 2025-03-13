@@ -17,6 +17,6 @@ spec:
       - name: acr-secret
       containers:
       - name: devopstask-container
-        image: devopsTaskContainerRegistry.azurecr.io/devopsTaskContainerRepository:latest
+        image: devopsTaskContainerRegistry.azurecr.io/devopstaskcontainerrepository:latest
         ports:
         - containerPort: 8080
