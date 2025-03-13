@@ -17,7 +17,7 @@ trigger:
 #     include:
 #       - main
 #       - develop
-
+  
 variables:
 
   # Container registry service connection established during pipeline creation
@@ -33,6 +33,7 @@ variables:
 
   # Name of the new namespace being created to deploy the PR changes.
   k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+  DATABASE_URL: postgres://user:password@123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
 
 stages:
 # Stage 1: Build and Test
