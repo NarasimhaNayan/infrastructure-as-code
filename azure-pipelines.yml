@@ -127,7 +127,7 @@ stages:
 
           - task: KubernetesManifest@1
             env:
-              DATABASE_URL: postgres://user:password@123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
+              DATABASE_URL: postgres://user:password%40123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
             displayName: Deploy to Kubernetes cluster
             inputs:
               action: deploy
