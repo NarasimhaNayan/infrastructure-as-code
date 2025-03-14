@@ -14,7 +14,7 @@ spec:
       annotations:
         promethus.io/scrape: 'true'
         prometheus.io/path: '/metrics'
-        prometheus.io/port: '9898'
+        prometheus.io/port: '8000'
     spec:
       # If using an imagePullSecret, uncomment the section below:
       # imagePullSecrets:
