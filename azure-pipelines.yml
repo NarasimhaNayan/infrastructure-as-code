@@ -12,11 +12,28 @@ trigger:
       - main
       - develop
 
-pr:
-  branches:
-    include:
-      - main
-      - develop
+# pr:
+#   branches:
+#     include:
+#       - main
+#       - develop
+  
+variables:
+
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: 'edac4454-1e02-4b6c-9c3d-5c7100c11af3'
+  imageRepository: 'devopstaskcontainerrepository'
+  containerRegistry: 'devopsTaskContainerRegistry.azurecr.io'
+  dockerfilePath: 'Devops-task/Dockerfile'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'devopstaskcontainerregistry5460273c-auth'
+
+  # Agent VM image name
+  vmImageName: 'self-hosted-agent'
+
+  # Name of the new namespace being created to deploy the PR changes.
+  k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
+  DATABASE_URL: postgres://user:password@123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
 
 stages:
 # Stage 1: Build and Test
@@ -51,87 +68,92 @@ stages:
     #   displayName: "Publish Test Results"
 
 # Stage 2: Containerization
-# - stage: Containerize
-#   displayName: "Containerize Application"
-#   dependsOn: BuildAndTest
-#   jobs:
-#   - job: BuildImage
-#     displayName: "Build and Push Docker Image"
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     steps:
-#     - checkout: self
-#     - task: Docker@2
-#       displayName: "Build and Push Docker Image"
-#       inputs:
-#         containerRegistry: '$(ACR_SERVICE_CONNECTION)'   # Service connection to your ACR (managed securely)
-#         repository: 'devopstask'
-#         command: 'buildAndPush'
-#         Dockerfile: '**/Dockerfile'
-#         tags: |
-#           $(Build.BuildId)
-#     - script: |
-#          echo "Docker image built and pushed successfully."
-#       displayName: "Confirm Build"
+- stage: Containerize
+  displayName: "Containerize Application"
+  dependsOn: AutomatedTesting
+  jobs:
+  - job: BuildImage
+    displayName: "Build and Push Docker Image"
+    pool: 'self-hosted-agent'
+    steps:
+    - checkout: self
+    - script: |
+        if not exist "Devops-task" (
+          echo "Cloning inner repository..."
+          git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
+        displayName: "Clone Inner Repository"
+        )
+    - task: Docker@2
+      displayName: "Build and Push Docker Image"
+      inputs:
+        containerRegistry: 'devopsTaskContainerRegistry'   # Service connection to your ACR (managed securely)
+        repository: 'devopsTaskContainerRepository'
+        command: 'buildAndPush'
+        Dockerfile: 'Devops-task/Dockerfile'
+        tags: |
+          $(Build.BuildId)
+    - script: |
+         echo "Docker image built and pushed successfully."
+      displayName: "Confirm Build"
 
 # # Stage 3: Deployment to AKS
 # - stage: Deploy
-#   displayName: "Deploy to AKS"
-#   dependsOn: Containerize
-#   jobs:
-#   - deployment: DeployToAKS
-#     displayName: "Deploy Application to AKS Cluster"
-#     environment: 'aks-prod'  # Define this environment in Azure Pipelines for approvals/quality gates
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     strategy:
-#       runOnce:
-#         deploy:
-#           steps:
-#           - checkout: self
-#           - task: Kubernetes@1
-#             displayName: "Deploy to AKS using kubectl"
-#             inputs:
-#               connectionType: 'Azure Resource Manager'
-#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
-#               azureResourceGroup: 'devops-task-resourceGroup'
-#               kubernetesCluster: 'devops-task-aksCluster'
-#               command: apply
-#               useConfigurationFile: true
-#               configuration: 'k8s/deployment.yaml'  # Your Kubernetes manifest file
-#           - task: Kubernetes@1
-#             displayName: "Check Deployment Status"
-#             inputs:
-#               connectionType: 'Azure Resource Manager'
-#               azureSubscriptionEndpoint: '$(AZURE_SUBSCRIPTION_SERVICE_CONNECTION)'
-#               azureResourceGroup: 'devops-task-resourceGroup'
-#               kubernetesCluster: 'devops-task-aksCluster'
-#               command: get
-#               arguments: 'pods'
-#           - script: |
-#                echo "Performing health check on deployment..."
-#                # Example health check: verify that at least one pod with label app=devopstask is Running.
-#                RUNNING=$(kubectl get pods -l app=devopstask -o jsonpath='{.items[*].status.phase}' | grep -c Running)
-#                echo "Found $RUNNING running pods."
-#                if [ $RUNNING -lt 1 ]; then
-#                  echo "Deployment health check failed."
-#                  exit 1
-#                fi
-#             displayName: "Health Check"
+- stage: Deploy
+  displayName: Deploy stage
+  dependsOn: Containerize
 
-# # Stage 4: Automated Rollback (if deployment fails)
-# - stage: Rollback
-#   displayName: "Rollback Deployment on Failure"
-#   dependsOn: Deploy
-#   condition: failed()  # This stage runs only if the Deploy stage fails
-#   jobs:
-#   - job: RollbackJob
-#     displayName: "Rollback Deployment to Previous Version"
-#     pool:
-#       vmImage: 'ubuntu-latest'
-#     steps:
-#     - script: |
-#          echo "Initiating rollback..."
-#          # Use kubectl rollout undo to rollback the deployment.
-#          kubectl rollout undo deployment/devopstask-deployment
-#       displayName: "Rollback Command"
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy image to AKS
+    pool: $(vmImageName)
+    environment: 'NarasimhaNayaninfrastructureascode-2986.default'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - script: |
+              if not exist "Devops-task" (
+                echo "Cloning inner repository..."
+                git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
+              displayName: "Clone Inner Repository"
+              )
+          - task: KubernetesManifest@1
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+
+          - task: KubernetesManifest@1
+            env:
+              DATABASE_URL: postgres://user:password%40123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              manifests: |
+                manifests\deployment.yml
+                manifests\service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                $(containerRegistry)/$(imageRepository):58
+
+# Stage 4: Automated Rollback (if deployment fails)
+- stage: Rollback
+  displayName: "Rollback Deployment on Failure"
+  dependsOn: Deploy
+  condition: failed() 
+  jobs:
+  - job: RollbackJob
+    displayName: "Rollback Deployment to Previous Version"
+    pool: $(vmImageName)
+    steps:
+    - script: |
+         echo "Fetching AKS credentials..."
+         az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
+         echo "Checking rollout history..."
+         kubectl rollout history deployment/devopstask-deployment --namespace default
+         echo "Initiating rollback..."
+         kubectl rollout undo deployment/devopstask-deployment --namespace default || echo "No previous revision found; rollback not possible."
+      displayName: "Rollback Command"
