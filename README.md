@@ -385,38 +385,7 @@ Custom alerts have been configured in Azure Monitor to provide proactive notific
 
 Below is a high-level diagram of the infrastructure:
 
-```
-+----------------------------------------------------------+
-|                    Azure Resource Group                  |
-|  +-----------------+      +----------------------------+ |
-|  | Virtual Network |      |  Azure Storage             | |
-|  |  (VNet)         |      |  (Data Storage)            | |
-|  |                 |      +----------------------------+ |
-|  |  +----------+   |                                  |
-|  |  | Public   |   |                                  |
-|  |  | Subnet   |   |                                  |
-|  |  +----------+   |                                  |
-|  |                 |                                  |
-|  |  +----------+   |                                  |
-|  |  | Private  |   |                                  |
-|  |  | Subnet   |   |                                  |
-|  |  +----------+   |                                  |
-|  +-----------------+                                  |
-|         |                                            |
-|         v                                            |
-|  +---------------------+                             |
-|  | AKS Cluster         |                             |
-|  | (Containerized App) |                             |
-|  +---------------------+                             |
-|         |                                            |
-|         v                                            |
-|  +---------------------+                             |
-|  | Managed Postgres DB |                             |
-|  +---------------------+                             |
-+----------------------------------------------------------+
-```
-
-For a more detailed and visual diagram, consider using a tool like draw.io or Visio.
+![architecture-diagram](images/architecture-diagram.png)
 
 ---
 
