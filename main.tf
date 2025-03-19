@@ -112,10 +112,3 @@ resource "azurerm_storage_account" "storage" {
   }
 }
 
-# Example IAM role assignment:
-# Grant the AKS managed identity access to the Storage Account (Storage Blob Data Contributor)
-# resource "azurerm_role_assignment" "aks_storage" {
-#   scope                = azurerm_storage_account.storage.id
-#   role_definition_name = "Storage Blob Data Contributor"
-#   principal_id         = azurerm_kubernetes_cluster.aks.identity[0].principal_id
-# }
