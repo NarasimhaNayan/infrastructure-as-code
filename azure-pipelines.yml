@@ -19,12 +19,14 @@ trigger:
 #       - develop
   
 variables:
+  # pulls the imagePullSecret and DATABASE-URL from key vault 
+  group: devops-task-variable-group
 
   # Container registry service connection established during pipeline creation
   dockerRegistryServiceConnection: 'edac4454-1e02-4b6c-9c3d-5c7100c11af3'
   imageRepository: 'devopstaskcontainerrepository'
   containerRegistry: 'devopsTaskContainerRegistry.azurecr.io'
-  dockerfilePath: 'Devops-task/Dockerfile'
+  dockerfilePath: 'Dockerfile'
   tag: '$(Build.BuildId)'
   imagePullSecret: 'devopstaskcontainerregistry5460273c-auth'
 
@@ -33,7 +35,6 @@ variables:
 
   # Name of the new namespace being created to deploy the PR changes.
   k8sNamespaceForPR: 'review-app-$(System.PullRequest.PullRequestId)'
-  DATABASE_URL: postgres://user:password@123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
 
 stages:
 # Stage 1: Build and Test
@@ -45,27 +46,41 @@ stages:
     pool: 'self-hosted-agent'
     steps:
     - checkout: self
-    # - script: |
-    #      echo "Running unit tests..."
-    #      # Replace with your actual test command (e.g., npm test, dotnet test, etc.)
-    #      ./run_tests.sh
-    #   displayName: "Run Unit Tests"
+    - script: |
+         echo "Checking for Go installation..."
+         where go
+         IF %ERRORLEVEL% NEQ 0 (
+            echo "Go not found. Installing Go via Chocolatey..."
+            choco install golang -y
+         ) ELSE (
+            echo "Go is already installed."
+         )
+         echo "Go version:"
+         go version
+         echo "Running tests..."
+         go test ./...
+      displayName: "Install Go and Run Tests"
+
     - script: |
          echo "Validating infrastructure..."
          terraform init
          terraform validate || echo "No infrastructure code to validate."
       displayName: "Infrastructure Validation"
 
-    # - script: |
-        #  echo "Performing security scan on container image..."
-        #  # Example: using Trivy for container scanning; adjust image name as needed.
-        #  trivy image --exit-code 0 --severity HIGH,CRITICAL devopstask:latest
-      # displayName: "Security Scanning"
-    # - task: PublishTestResults@2
+    # - task: Bash@3
+    #   displayName: "Run Shell Script"
     #   inputs:
-    #      testResultsFiles: '**/test-results.xml'
-    #      testRunTitle: 'Unit Tests'
-    #   displayName: "Publish Test Results"
+    #     targetType: 'inline'
+    #     script: |
+    #       echo "Running shell script..."
+    #       ./my-script.sh
+
+    # - script: |
+    #     echo "Installing Trivy..."
+    #     choco install trivy -y
+    #     chmod +x security-scan.sh
+    #     ./security-scan.sh $(containerRegistry)/$(imageRepository):$(Build.BuildId)
+    #   displayName: "Security Scans"
 
 # Stage 2: Containerization
 - stage: Containerize
@@ -74,27 +89,30 @@ stages:
   jobs:
   - job: BuildImage
     displayName: "Build and Push Docker Image"
-    pool: 'self-hosted-agent'
+    pool: $(vmImageName)
     steps:
     - checkout: self
-    - script: |
-        if not exist "Devops-task" (
-          echo "Cloning inner repository..."
-          git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
-        displayName: "Clone Inner Repository"
-        )
     - task: Docker@2
       displayName: "Build and Push Docker Image"
       inputs:
         containerRegistry: 'devopsTaskContainerRegistry'   # Service connection to your ACR (managed securely)
-        repository: 'devopsTaskContainerRepository'
+        repository: $(imageRepository)
         command: 'buildAndPush'
-        Dockerfile: 'Devops-task/Dockerfile'
+        Dockerfile: $(dockerfilePath)
         tags: |
           $(Build.BuildId)
     - script: |
          echo "Docker image built and pushed successfully."
       displayName: "Confirm Build"
+    - task: Bash@3
+      displayName: "Install Trivy and Run Security Scan"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Installing Trivy..."
+          choco install trivy -y
+          chmod +x security-scan.sh
+          ./security-scan.sh $(containerRegistry)/$(imageRepository):$(Build.BuildId)
 
 # # Stage 3: Deployment to AKS
 # - stage: Deploy
@@ -112,12 +130,6 @@ stages:
         deploy:
           steps:
           - checkout: self
-          - script: |
-              if not exist "Devops-task" (
-                echo "Cloning inner repository..."
-                git clone https://github.com/NarasimhaNayan/Devops-task.git Devops-task
-              displayName: "Clone Inner Repository"
-              )
           - task: KubernetesManifest@1
             displayName: Create imagePullSecret
             inputs:
@@ -127,7 +139,7 @@ stages:
 
           - task: KubernetesManifest@1
             env:
-              DATABASE_URL: postgres://user:password%40123@devops-task-postgres-28.postgres.database.azure.com:5432/postgres?sslmode=require
+              DATABASE_URL: $(DATABASE_URL)
             displayName: Deploy to Kubernetes cluster
             inputs:
               action: deploy
@@ -137,7 +149,7 @@ stages:
               imagePullSecrets: |
                 $(imagePullSecret)
               containers: |
-                $(containerRegistry)/$(imageRepository):58
+                $(containerRegistry)/$(imageRepository):$(Build.BuildId)
 
 # Stage 4: Automated Rollback (if deployment fails)
 - stage: Rollback
@@ -149,11 +161,15 @@ stages:
     displayName: "Rollback Deployment to Previous Version"
     pool: $(vmImageName)
     steps:
-    - script: |
-         echo "Fetching AKS credentials..."
-         az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
-         echo "Checking rollout history..."
-         kubectl rollout history deployment/devopstask-deployment --namespace default
-         echo "Initiating rollback..."
-         kubectl rollout undo deployment/devopstask-deployment --namespace default || echo "No previous revision found; rollback not possible."
+    - task: Bash@3
       displayName: "Rollback Command"
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Fetching AKS credentials..."
+          az aks get-credentials --resource-group devops-task-resourceGroup --name devops-task-aksCluster --overwrite-existing
+          echo "Checking rollout history..."
+          kubectl rollout history deployment/devopstask-deployment --namespace default
+          echo "Initiating rollback..."
+          kubectl rollout undo deployment/devopstask-deployment --namespace default || echo "No previous revision found; rollback not possible."
+
